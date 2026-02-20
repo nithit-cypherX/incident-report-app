@@ -146,8 +146,8 @@ export function IncidentList() {
               value={`${sortBy}-${sortOrder}`}
               onChange={(e) => {
                 const [newSortBy, newSortOrder] = e.target.value.split('-');
-                setSortBy(newSortBy as any);
-                setSortOrder(newSortOrder as any);
+                setSortBy(newSortBy as 'created_at' | 'updated_at' | 'title');
+                setSortOrder(newSortOrder as 'asc' | 'desc');
               }}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >

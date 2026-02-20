@@ -11,7 +11,7 @@ export const incidentApi = {
   getAll: (params?: IncidentQueryParams) => {
     const queryString = params ? '?' + new URLSearchParams(
       Object.entries(params)
-        .filter(([_, v]) => v !== undefined && v !== '')
+        .filter(([, v]) => v !== undefined && v !== '')
         .map(([k, v]) => [k, String(v)])
     ).toString() : '';
     
