@@ -1,25 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { incidentService } from './incidentService';
-import type { CreateIncidentDTO, UpdateIncidentDTO } from '../../types/incident';
+import { incidentApi } from './incidentService';
+import type { CreateIncidentDTO, UpdateIncidentDTO, IncidentQueryParams } from '../../types/incident';
 import toast from 'react-hot-toast';
 
-const INCIDENTS_KEY = ['incidents'] as const;
+const INCIDENTS_KEY = 'incidents';
 
-export function useIncidents() {
+export function useIncidents(params?: IncidentQueryParams) {
   return useQuery({
-    queryKey: INCIDENTS_KEY,
-    queryFn: incidentService.getAll,
-    staleTime: 30 * 1000, // 30 seconds
+    queryKey: [INCIDENTS_KEY, params],
+    queryFn: () => incidentApi.getAll(params),
+    staleTime: 30 * 1000,
   });
 }
 
 export function useCreateIncident() {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
-    mutationFn: (dto: CreateIncidentDTO) => incidentService.create(dto),
+    mutationFn: (dto: CreateIncidentDTO) => incidentApi.create(dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INCIDENTS_KEY });
+      queryClient.invalidateQueries({ queryKey: [INCIDENTS_KEY] });
       toast.success('Incident created successfully!');
     },
     onError: (error: Error) => {
@@ -30,12 +30,12 @@ export function useCreateIncident() {
 
 export function useUpdateIncident() {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: UpdateIncidentDTO }) =>
-      incidentService.update(id, dto),
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateIncidentDTO }) => 
+      incidentApi.update(id, dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INCIDENTS_KEY });
+      queryClient.invalidateQueries({ queryKey: [INCIDENTS_KEY] });
       toast.success('Incident updated successfully!');
     },
     onError: (error: Error) => {
@@ -46,11 +46,11 @@ export function useUpdateIncident() {
 
 export function useDeleteIncident() {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
-    mutationFn: (id: string) => incidentService.delete(id),
+    mutationFn: (id: string) => incidentApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INCIDENTS_KEY });
+      queryClient.invalidateQueries({ queryKey: [INCIDENTS_KEY] });
       toast.success('Incident deleted successfully!');
     },
     onError: (error: Error) => {

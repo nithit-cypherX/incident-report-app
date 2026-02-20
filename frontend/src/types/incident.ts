@@ -24,3 +24,23 @@ export interface UpdateIncidentDTO {
   category: Category;
   status: Status;
 }
+
+
+export interface IncidentQueryParams {
+  category?: string;
+  status?: string;
+  search?: string;
+  sort_by?: 'created_at' | 'updated_at' | 'title';
+  sort_order?: 'asc' | 'desc';
+  page?: number;
+  page_size?: number;
+}
+
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}

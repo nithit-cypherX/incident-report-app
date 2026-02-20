@@ -1,40 +1,67 @@
-import { useState } from 'react';
-import  type { Incident } from '../../types/incident';
+import { useState, useMemo } from 'react';
+import type { Incident, IncidentQueryParams } from '../../types/incident';
 import { IncidentCard } from './IncidentCard';
 import { IncidentForm } from './IncidentForm';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
-import {
-  useIncidents,
-  useCreateIncident,
-  useUpdateIncident,
-  useDeleteIncident
+import { 
+  useIncidents, 
+  useCreateIncident, 
+  useUpdateIncident, 
+  useDeleteIncident 
 } from './useIncidents';
 import type { IncidentFormData } from './incidentSchema';
+import { useDebounce } from '../../hooks/useDebounce'; // ← NEW IMPORT
 
 export function IncidentList() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingIncident, setEditingIncident] = useState<Incident | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  
+  // Query parameters state
+  const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'created_at' | 'updated_at' | 'title'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const { data: incidents = [], isLoading } = useIncidents();
+  // ← DEBOUNCE THE SEARCH (only triggers API after 500ms of no typing)
+  const debouncedSearch = useDebounce(search, 500);
+
+  // Build query params - use debouncedSearch instead of search
+  const queryParams: IncidentQueryParams = useMemo(() => ({
+    search: debouncedSearch || undefined, // ← Changed from `search` to `debouncedSearch`
+    category: filterCategory || undefined,
+    status: filterStatus || undefined,
+    sort_by: sortBy,
+    sort_order: sortOrder,
+    page,
+    page_size: pageSize,
+  }), [debouncedSearch, filterCategory, filterStatus, sortBy, sortOrder, page, pageSize]);
+  // ↑ Also update dependency array
+
+  const { data, isLoading } = useIncidents(queryParams);
   const createMutation = useCreateIncident();
   const updateMutation = useUpdateIncident();
   const deleteMutation = useDeleteIncident();
 
-  const handleCreate = (data: IncidentFormData) => {
-    createMutation.mutate(data, {
+  const incidents = data?.data || [];
+  const total = data?.total || 0;
+  const totalPages = data?.total_pages || 0;
+
+  const handleCreate = (formData: IncidentFormData) => {
+    createMutation.mutate(formData, {
       onSuccess: () => setIsCreateOpen(false),
     });
   };
 
-  const handleUpdate = (data: IncidentFormData) => {
+  const handleUpdate = (formData: IncidentFormData) => {
     if (!editingIncident) return;
     updateMutation.mutate(
-      { id: editingIncident.id, dto: data },
+      { id: editingIncident.id, dto: formData },
       { onSuccess: () => setEditingIncident(null) }
     );
   };
@@ -45,12 +72,6 @@ export function IncidentList() {
       onSuccess: () => setDeletingId(null),
     });
   };
-
-  const filteredIncidents = incidents.filter((incident) => {
-    if (filterCategory && incident.category !== filterCategory) return false;
-    if (filterStatus && incident.status !== filterStatus) return false;
-    return true;
-  });
 
   if (isLoading) {
     return (
@@ -69,7 +90,7 @@ export function IncidentList() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Incident Reports</h1>
               <p className="text-gray-600 mt-1">
-                Manage and track safety and maintenance incidents
+                {total} total incidents
               </p>
             </div>
             <Button onClick={() => setIsCreateOpen(true)}>
@@ -77,11 +98,27 @@ export function IncidentList() {
             </Button>
           </div>
 
-          {/* Filters */}
-          <div className="flex gap-4">
+          {/* Search & Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            {/* Search - Keep onChange as is, but API uses debounced value */}
+            <input
+              type="text"
+              placeholder="Search incidents..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1); // Reset to page 1 on search
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            {/* Category Filter */}
             <select
               value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
+              onChange={(e) => {
+                setFilterCategory(e.target.value);
+                setPage(1);
+              }}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Categories</option>
@@ -89,9 +126,13 @@ export function IncidentList() {
               <option value="Maintenance">Maintenance</option>
             </select>
 
+            {/* Status Filter */}
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setPage(1);
+              }}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Statuses</option>
@@ -99,15 +140,32 @@ export function IncidentList() {
               <option value="In Progress">In Progress</option>
               <option value="Success">Success</option>
             </select>
+
+            {/* Sort */}
+            <select
+              value={`${sortBy}-${sortOrder}`}
+              onChange={(e) => {
+                const [newSortBy, newSortOrder] = e.target.value.split('-');
+                setSortBy(newSortBy as any);
+                setSortOrder(newSortOrder as any);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="created_at-desc">Newest First</option>
+              <option value="created_at-asc">Oldest First</option>
+              <option value="updated_at-desc">Recently Updated</option>
+              <option value="title-asc">Title A-Z</option>
+              <option value="title-desc">Title Z-A</option>
+            </select>
           </div>
         </div>
 
         {/* List */}
-        {filteredIncidents.length === 0 ? (
+        {incidents.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No incidents found</p>
-            <Button
-              variant="secondary"
+            <Button 
+              variant="secondary" 
               onClick={() => setIsCreateOpen(true)}
               className="mt-4"
             >
@@ -115,19 +173,65 @@ export function IncidentList() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredIncidents.map((incident) => (
-              <IncidentCard
-                key={incident.id}
-                incident={incident}
-                onEdit={setEditingIncident}
-                onDelete={setDeletingId}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              {incidents.map((incident) => (
+                <IncidentCard
+                  key={incident.id}
+                  incident={incident}
+                  onEdit={setEditingIncident}
+                  onDelete={setDeletingId}
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-700">
+                  Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} results
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm"
+                >
+                  <option value="5">5 per page</option>
+                  <option value="10">10 per page</option>
+                  <option value="20">20 per page</option>
+                  <option value="50">50 per page</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  Previous
+                </Button>
+                <span className="px-4 py-2 text-sm">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </>
         )}
 
-        {/* Create Modal */}
+        {/* Modals */}
         <Modal
           isOpen={isCreateOpen}
           onClose={() => setIsCreateOpen(false)}
@@ -140,7 +244,6 @@ export function IncidentList() {
           />
         </Modal>
 
-        {/* Edit Modal */}
         <Modal
           isOpen={!!editingIncident}
           onClose={() => setEditingIncident(null)}
@@ -161,7 +264,6 @@ export function IncidentList() {
           )}
         </Modal>
 
-        {/* Delete Confirmation */}
         <DeleteConfirmDialog
           isOpen={!!deletingId}
           onClose={() => setDeletingId(null)}

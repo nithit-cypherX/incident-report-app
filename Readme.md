@@ -1,6 +1,8 @@
 # Incident Report App
 
-A full-stack web application for managing safety and maintenance incident reports. Built with Go backend and React frontend.
+[![CI/CD Pipeline](https://github.com/nithit-cypherX/incident-report-app/actions/workflows/ci.yml/badge.svg)](https://github.com/nithit-cypherX/incident-report-app/actions/workflows/ci.yml)
+
+A full-stack web application for managing safety and maintenance incident reports. Built with Go backend and React frontend, following production-grade architecture patterns.
 
 ![Tech Stack](https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white)
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)
@@ -8,19 +10,25 @@ A full-stack web application for managing safety and maintenance incident report
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
 
+## Features
 
-## ✨ Features
-
+### Core Functionality
 - **Create Incident Reports** - Submit new safety or maintenance incidents
-- **View All Incidents** - List all incidents with filtering capabilities
+- **View All Incidents** - List all incidents with advanced querying
 - **Edit Incidents** - Update existing incident details
 - **Delete Incidents** - Remove incident reports
-- **Filter & Search** - Filter by category (Safety/Maintenance) and status (Open/In Progress/Success)
 - **Real-time Validation** - Frontend and backend validation using Zod
 - **Responsive UI** - Works seamlessly on desktop and mobile devices
 - **Toast Notifications** - User-friendly feedback for all actions
 
-## 🛠 Tech Stack
+### Advanced Features
+- **Smart Search** - Search incidents by title or description with debounced input (500ms delay)
+- **Multi-Filter** - Filter by category (Safety/Maintenance) and status (Open/In Progress/Success)
+- **Sorting** - Sort by created date, updated date, or title (ascending/descending)
+- **Pagination** - Navigate through incidents with customizable page size (5, 10, 20, 50 per page)
+- **Performance Optimized** - Database indexes for fast queries, React Query caching
+
+## Tech Stack
 
 ### Backend
 - **Go 1.21+** - Backend programming language
@@ -33,32 +41,27 @@ A full-stack web application for managing safety and maintenance incident report
 - **React 19** - UI library
 - **TypeScript** - Type-safe JavaScript
 - **Vite** - Build tool and dev server
-- **TanStack Query** - Server state management
+- **TanStack Query** - Server state management with caching
 - **React Hook Form + Zod** - Form handling and validation
 - **Tailwind CSS** - Utility-first CSS framework
 - **Axios** - HTTP client
 
-### DevOps
+### DevOps & CI/CD
 - **Docker & Docker Compose** - Containerization
-- **Git** - Version control
+- **GitHub Actions** - Automated CI/CD pipeline
+- **ESLint** - Code linting
+- **Go fmt & go vet** - Code quality checks
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-- **Go 1.21 or higher** 
-- **Node.js 18 or higher** 
-- **Docker Desktop** 
-- **Git**
+- **Go 1.21 or higher** - 
+- **Node.js 18 or higher** - 
+- **Docker Desktop** - 
+- **Git** - 
 
-Verify installations:
 
-```bash
-go version      # Should show go1.21 or higher
-node --version  # Should show v18.x or higher
-docker --version
-git --version
-```
 
 ## Installation
 
@@ -161,6 +164,27 @@ You should see the Incident Report dashboard!
 http://localhost:8080/api/v1
 ```
 
+### Advanced Query Parameters
+
+The API supports advanced querying with the following parameters:
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `search` | string | Search in title and description | `?search=fire` |
+| `category` | string | Filter by category | `?category=Safety` |
+| `status` | string | Filter by status | `?status=Open` |
+| `sort_by` | string | Sort field (created_at, updated_at, title) | `?sort_by=created_at` |
+| `sort_order` | string | Sort direction (asc, desc) | `?sort_order=desc` |
+| `page` | number | Page number (starts at 1) | `?page=2` |
+| `page_size` | number | Items per page (5-100) | `?page_size=10` |
+
+**Example Queries:**
+```
+GET /api/v1/incidents?search=fire&category=Safety
+GET /api/v1/incidents?status=Open&sort_by=created_at&sort_order=desc
+GET /api/v1/incidents?page=2&page_size=20
+```
+
 ### Endpoints
 
 #### Health Check
@@ -174,23 +198,29 @@ GET /health
 }
 ```
 
-#### Get All Incidents
+#### Get All Incidents (with pagination)
 ```http
-GET /api/v1/incidents
+GET /api/v1/incidents?page=1&page_size=10
 ```
 **Response:**
 ```json
-[
-  {
-    "id": "uuid-here",
-    "title": "Broken fire exit",
-    "description": "Door is blocked",
-    "category": "Safety",
-    "status": "Open",
-    "created_at": "2024-02-20T10:00:00Z",
-    "updated_at": "2024-02-20T10:00:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": "uuid-here",
+      "title": "Broken fire exit",
+      "description": "Door is blocked",
+      "category": "Safety",
+      "status": "Open",
+      "created_at": "2024-02-20T10:00:00Z",
+      "updated_at": "2024-02-20T10:00:00Z"
+    }
+  ],
+  "total": 25,
+  "page": 1,
+  "page_size": 10,
+  "total_pages": 3
+}
 ```
 
 #### Get Single Incident
@@ -231,8 +261,6 @@ Content-Type: application/json
 ```http
 DELETE /api/v1/incidents/:id
 ```
-**Response:** 204 No Content
-
 
 ## Project Structure
 
@@ -274,6 +302,8 @@ incident-report-app/
 │   │   │   ├── Modal.tsx
 │   │   │   ├── Input.tsx
 │   │   │   └── Select.tsx
+│   │   ├── hooks/
+│   │   │   └── useDebounce.ts      # Debounce hook for search
 │   │   ├── lib/
 │   │   │   ├── api.ts              # Axios client
 │   │   │   └── utils.ts            # Utility functions
@@ -284,6 +314,8 @@ incident-report-app/
 │   ├── package.json
 │   └── vite.config.ts
 │
+├── .github/workflows/
+│   └── ci.yml                      # CI/CD pipeline
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
@@ -316,19 +348,53 @@ incident-report-app/
     └─────────────┘
 ```
 
+## CI/CD Pipeline
 
-### Frontend - Feature-Based Structure
+This project uses GitHub Actions for continuous integration and deployment.
 
-All code related to a feature lives together:
+### Pipeline Stages
+
+1. **Backend CI**
+   - Code checkout
+   - Go dependency installation
+   - Code formatting check (`go fmt`)
+   - Static analysis (`go vet`)
+   - Build verification
+
+2. **Frontend CI**
+   - Code checkout
+   - Node.js dependency installation
+   - TypeScript type checking
+   - ESLint code linting
+   - Production build
+
+### Workflow Triggers
+
+- **Push to `main` or `develop` branch** - Full CI pipeline runs
+- **Pull Request to `main`** - Full CI pipeline runs
+
+### View Pipeline Status
+
+Check the [Actions tab](https://github.com/nithit-cypherX/incident-report-app/actions) in the repository to see pipeline runs and results.
+
+
+### Database Management
+
+```bash
+# Stop database
+docker-compose down
+
+# Stop and remove volumes (fresh start)
+docker-compose down -v
+
+# View logs
+docker-compose logs postgres
+
+# Access PostgreSQL CLI
+docker exec -it incident_db psql -U postgres -d incident_db
 ```
-features/incidents/
-  ├── Components  (IncidentList, IncidentCard, IncidentForm)
-  ├── Hooks       (useIncidents, useCreateIncident, etc.)
-  ├── Service     (incidentService.ts)
-  └── Schema      (incidentSchema.ts)
-```
 
-## Environment Variables
+## 📝 Environment Variables
 
 ### Backend (.env)
 ```bash
@@ -345,4 +411,3 @@ CORS_ORIGIN=http://localhost:5173
 ```bash
 VITE_API_URL=http://localhost:8080/api/v1
 ```
-
